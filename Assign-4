@@ -1,0 +1,139 @@
+import java.util.*;
+
+class Edge {
+    int to;
+    int weight;
+
+    Edge(int to, int weight) {
+        this.to = to;
+        this.weight = weight;
+    }
+}
+
+public class AmbulanceRouting {
+
+    // Dijkstra's algorithm
+    public static void dijkstra(int source, List<List<Edge>> graph, int[] dist, int[] parent) {
+        int V = graph.size();
+        Arrays.fill(dist, Integer.MAX_VALUE);
+        Arrays.fill(parent, -1);
+
+        dist[source] = 0;
+
+        PriorityQueue<int[]> pq = new PriorityQueue<>(Comparator.comparingInt(a -> a[0]));
+        pq.offer(new int[]{0, source});
+
+        while (!pq.isEmpty()) {
+            int[] cur = pq.poll();
+            int d = cur[0];
+            int u = cur[1];
+
+            if (d > dist[u]) continue;
+
+            for (Edge edge : graph.get(u)) {
+                int v = edge.to;
+                int w = edge.weight;
+                if (dist[v] > dist[u] + w) {
+                    dist[v] = dist[u] + w;
+                    parent[v] = u;
+                    pq.offer(new int[]{dist[v], v});
+                }
+            }
+        }
+    }
+
+    // Function to print path from source to destination
+    public static void printPath(int dest, int[] parent) {
+        Stack<Integer> path = new Stack<>();
+        int current = dest;
+        while (current != -1) {
+            path.push(current);
+            current = parent[current];
+        }
+
+        System.out.print("Path: ");
+        while (!path.isEmpty()) {
+            System.out.print(path.pop());
+            if (!path.isEmpty()) System.out.print(" -> ");
+        }
+        System.out.println();
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter number of intersections (vertices): ");
+        int V = sc.nextInt();
+        if (V <= 0) {
+            System.out.println("Number of intersections must be positive.");
+            return;
+        }
+
+        System.out.print("Enter number of roads (edges): ");
+        int E = sc.nextInt();
+        if (E < 0) {
+            System.out.println("Number of roads cannot be negative.");
+            return;
+        }
+
+        List<List<Edge>> graph = new ArrayList<>();
+        for (int i = 0; i < V; i++) graph.add(new ArrayList<>());
+
+        System.out.println("Enter edges in format: u v w (0-based indexing, w = travel time in minutes):");
+        for (int i = 0; i < E; i++) {
+            int u = sc.nextInt();
+            int v = sc.nextInt();
+            int w = sc.nextInt();
+            if (u < 0 || u >= V || v < 0 || v >= V || w < 0) {
+                System.out.println("Invalid input. Node indices must be 0 to " + (V - 1) + " and weight non-negative.");
+                return;
+            }
+            graph.get(u).add(new Edge(v, w));
+            graph.get(v).add(new Edge(u, w)); // undirected road
+        }
+
+        System.out.print("Enter ambulance start location (source node, 0 to " + (V - 1) + "): ");
+        int source = sc.nextInt();
+        if (source < 0 || source >= V) {
+            System.out.println("Invalid source node.");
+            return;
+        }
+
+        System.out.print("Enter number of hospitals: ");
+        int H = sc.nextInt();
+        if (H <= 0 || H > V) {
+            System.out.println("Invalid number of hospitals.");
+            return;
+        }
+
+        int[] hospitals = new int[H];
+        System.out.println("Enter hospital node indices (0-based):");
+        for (int i = 0; i < H; i++) {
+            hospitals[i] = sc.nextInt();
+            if (hospitals[i] < 0 || hospitals[i] >= V) {
+                System.out.println("Invalid hospital node.");
+                return;
+            }
+        }
+
+        int[] dist = new int[V];
+        int[] parent = new int[V];
+        dijkstra(source, graph, dist, parent);
+        int minTime = Integer.MAX_VALUE;
+        int nearestHospital = -1;
+        for (int h : hospitals) {
+            if (dist[h] < minTime) {
+                minTime = dist[h];
+                nearestHospital = h;
+            }
+        }
+
+        if (nearestHospital == -1 || minTime == Integer.MAX_VALUE) {
+            System.out.println("No hospital reachable from source node " + source + ".");
+        } else {
+            System.out.println("Nearest hospital is at node " + nearestHospital + " with travel time " + minTime + " minutes.");
+            printPath(nearestHospital, parent);
+        }
+        sc.close();
+    }
+}
