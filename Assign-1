@@ -1,0 +1,100 @@
+// File name: MergeSortOrders.java
+
+import java.util.*;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+
+class Order {
+    String orderID;
+    LocalDateTime timestamp;
+
+    public Order(String orderID, LocalDateTime timestamp) {
+        this.orderID = orderID;
+        this.timestamp = timestamp;
+    }
+}
+
+public class MergeSortOrders {
+
+    // Generate random sample orders
+    static List<Order> generateSampleOrders(int n) {
+        List<Order> orders = new ArrayList<>();
+        LocalDateTime baseTime = LocalDateTime.of(2025, 6, 24, 12, 0);
+        Random rand = new Random();
+
+        for (int i = 0; i < n; i++) {
+            int randomMinutes = rand.nextInt(100000); // up to ~70 days
+            LocalDateTime randomTime = baseTime.plusMinutes(randomMinutes);
+            orders.add(new Order("ORD" + (i + 1), randomTime));
+        }
+        return orders;
+    }
+
+    // Merge two sorted lists
+    static void merge(List<Order> orders, int left, int mid, int right) {
+        int n1 = mid - left + 1;
+        int n2 = right - mid;
+
+        List<Order> leftList = new ArrayList<>();
+        List<Order> rightList = new ArrayList<>();
+
+        for (int i = 0; i < n1; i++)
+            leftList.add(orders.get(left + i));
+        for (int j = 0; j < n2; j++)
+            rightList.add(orders.get(mid + 1 + j));
+
+        int i = 0, j = 0, k = left;
+
+        while (i < n1 && j < n2) {
+            if (leftList.get(i).timestamp.isBefore(rightList.get(j).timestamp) ||
+                leftList.get(i).timestamp.isEqual(rightList.get(j).timestamp)) {
+                orders.set(k++, leftList.get(i++));
+            } else {
+                orders.set(k++, rightList.get(j++));
+            }
+        }
+
+        while (i < n1)
+            orders.set(k++, leftList.get(i++));
+        while (j < n2)
+            orders.set(k++, rightList.get(j++));
+    }
+
+    // Recursive merge sort
+    static void mergeSort(List<Order> orders, int left, int right) {
+        if (left < right) {
+            int mid = left + (right - left) / 2;
+            mergeSort(orders, left, mid);
+            mergeSort(orders, mid + 1, right);
+            merge(orders, left, mid, right);
+        }
+    }
+
+    // Print first N orders
+    static void printFirstNOrders(List<Order> orders, int n) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+        for (int i = 0; i < n && i < orders.size(); i++) {
+            System.out.println("Order ID: " + orders.get(i).orderID +
+                    ", Timestamp: " + orders.get(i).timestamp.format(formatter) + "Z");
+        }
+    }
+
+    public static void main(String[] args) {
+        int NUM_ORDERS = 1000000; // Use 1000 for testing if needed
+        System.out.println("Generating orders...");
+        List<Order> orders = generateSampleOrders(NUM_ORDERS);
+
+        System.out.println("Sorting orders by timestamp...");
+        long start = System.currentTimeMillis();
+
+        mergeSort(orders, 0, orders.size() - 1);
+
+        long end = System.currentTimeMillis();
+        double seconds = (end - start) / 1000.0;
+
+        System.out.printf("Done! Sorted %d orders in %.2f seconds.%n%n", NUM_ORDERS, seconds);
+
+        System.out.println("First 10 Sorted Orders:");
+        printFirstNOrders(orders, 10);
+    }
+}
