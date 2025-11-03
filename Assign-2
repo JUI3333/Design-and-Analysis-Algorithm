@@ -1,0 +1,88 @@
+import java.util.*;
+import java.io.*;
+import java.time.*;
+import java.time.format.*;
+
+class Movie {
+    String title;
+    float rating;
+    int release_year;
+    int popularity;
+
+    void display() {
+        System.out.println(title + " | Rating: " + rating + " | Year: " + release_year + " | Popularity: " + popularity);
+    }
+}
+
+public class QuickSortMovies {
+
+    // QuickSort with comparator
+    static void quickSort(List<Movie> movies, int low, int high, Comparator<Movie> cmp) {
+        if (low < high) {
+            int pivotIndex = partition(movies, low, high, cmp);
+            quickSort(movies, low, pivotIndex - 1, cmp);
+            quickSort(movies, pivotIndex + 1, high, cmp);
+        }
+    }
+
+    static int partition(List<Movie> movies, int low, int high, Comparator<Movie> cmp) {
+        Movie pivot = movies.get(high);
+        int i = low - 1;
+        for (int j = low; j < high; j++) {
+            if (cmp.compare(movies.get(j), pivot) <= 0) {
+                i++;
+                Collections.swap(movies, i, j);
+            }
+        }
+        Collections.swap(movies, i + 1, high);
+        return i + 1;
+    }
+
+    // Load sample movies
+    static List<Movie> loadSampleMovies() {
+        List<Movie> movies = new ArrayList<>();
+        movies.add(new Movie() {{ title="The Wolf of Wall Street"; rating=7.9f; release_year=2024; popularity=281063; }});
+        movies.add(new Movie() {{ title="Avengers: Infinity War"; rating=6.1f; release_year=2024; popularity=786173; }});
+        movies.add(new Movie() {{ title="Gladiator"; rating=4.9f; release_year=2024; popularity=145947; }});
+        movies.add(new Movie() {{ title="Parasite"; rating=6.1f; release_year=2024; popularity=401513; }});
+        movies.add(new Movie() {{ title="WALL·E"; rating=1.2f; release_year=2024; popularity=422627; }});
+        movies.add(new Movie() {{ title="Back to the Future"; rating=8f; release_year=2024; popularity=575837; }});
+        movies.add(new Movie() {{ title="A Beautiful Mind"; rating=5.7f; release_year=2024; popularity=540292; }});
+        movies.add(new Movie() {{ title="The Big Short"; rating=2.1f; release_year=2024; popularity=684093; }});
+        movies.add(new Movie() {{ title="Saving Private Ryan"; rating=6.1f; release_year=2024; popularity=901489; }});
+        movies.add(new Movie() {{ title="Pulp Fiction"; rating=1.5f; release_year=2024; popularity=792116; }});
+        return movies;
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        List<Movie> movies = loadSampleMovies();
+
+        System.out.print("Sort movies by (rating/year/popularity): ");
+        String sort_by = sc.next();
+
+        Comparator<Movie> cmp;
+        switch(sort_by) {
+            case "rating": cmp = Comparator.comparingDouble(m -> m.rating); break;
+            case "year": cmp = Comparator.comparingInt(m -> m.release_year); break;
+            case "popularity": cmp = Comparator.comparingInt(m -> m.popularity); break;
+            default:
+                System.out.println("Invalid choice. Defaulting to rating.");
+                cmp = Comparator.comparingDouble(m -> m.rating);
+        }
+
+        long startTime = System.nanoTime();
+        quickSort(movies, 0, movies.size() - 1, cmp);
+        long endTime = System.nanoTime();
+
+        System.out.println("\nTop 10 movies sorted by " + sort_by + ":");
+        for (int i = movies.size() - 1; i >= 0 && i >= movies.size() - 10; i--) {
+            movies.get(i).display();
+       }
+
+        double elapsedSeconds = (endTime - startTime) / 1_000_000_000.0;
+        System.out.printf("\nSorted %d movies in %.6f seconds.%n", movies.size(), elapsedSeconds);
+    }
+}
+
+
