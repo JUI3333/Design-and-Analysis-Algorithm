@@ -1,0 +1,53 @@
+ import java.util.*;
+public class DisasterReliefKnapsack {
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        // Input number of items
+        System.out.print("Enter number of items: ");
+        int n = sc.nextInt();
+        int[] weight = new int[n];
+        int[] value = new int[n];
+        boolean[] perishable = new boolean[n];
+        // Input weight, value, and perishability
+        for (int i = 0; i < n; i++) {
+            System.out.print("Enter weight of item " + (i + 1) + ": ");
+            weight[i] = sc.nextInt();
+            System.out.print("Enter utility value of item " + (i + 1) + ": ");
+            value[i] = sc.nextInt();
+            System.out.print("Is the item perishable or life-saving? (yes=1 / no=0): ");
+            int p = sc.nextInt();
+            if (p == 1) {
+                perishable[i] = true;
+                value[i] += 5; // increase utility for priority items
+            }
+        }
+        // Input truck capacity
+        System.out.print("Enter truck capacity (W): ");
+        int W = sc.nextInt();
+        // DP table
+        int[][] dp = new int[n + 1][W + 1];
+        // Fill DP table
+        for (int i = 1; i <= n; i++) {
+            for (int w = 1; w <= W; w++) {
+                if (weight[i - 1] <= w)
+                    dp[i][w] = Math.max(value[i - 1] + dp[i - 1][w - weight[i - 1]], dp[i - 1][w]);
+                else
+                    dp[i][w] = dp[i - 1][w];
+            }
+        }
+        // Output maximum utility
+        System.out.println("\nMaximum Total Utility: " + dp[n][W]);
+
+        // Traceback to find included items
+        int w = W;
+        List<Integer> includedItems = new ArrayList<>();
+        for (int i = n; i > 0; i--) {
+            if (dp[i][w] != dp[i - 1][w]) {
+                includedItems.add(i);
+                w -= weight[i - 1];
+            }
+        }
+        Collections.reverse(includedItems);
+        System.out.println("Items included in the truck: " + includedItems);
+    }
