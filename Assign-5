@@ -1,0 +1,113 @@
+import java.util.*;
+class Edge {
+    int toStage, toNode, weight;
+    Edge(int toStage, int toNode, int weight) {
+        this.toStage = toStage;
+        this.toNode = toNode;
+        this.weight = weight;
+    }
+}
+
+public class MultiStageDP {
+    static class Result {
+        int cost;
+        List<int[]> path;
+        Result(int cost, List<int[]> path) {
+            this.cost = cost;
+            this.path = path;
+        }
+    }
+
+    // DP function for multistage graph
+    static Result findOptimalRoute(int stages, int sourceStage, int sourceNode,
+                                   int destStage, int destNode,
+                                   List<List<List<Edge>>> graph) {
+
+        int[][] cost = new int[stages][];
+        int[][][] nextNode = new int[stages][][];
+        for (int i = 0; i < stages; i++) {
+            int n = graph.get(i).size();
+            cost[i] = new int[n];
+            nextNode[i] = new int[n][2];
+            Arrays.fill(cost[i], Integer.MAX_VALUE);
+            for (int[] arr : nextNode[i]) Arrays.fill(arr, -1);
+        }
+        cost[destStage][destNode] = 0; // Base case
+
+        // DP from last stage backward
+        for (int stage = stages - 2; stage >= 0; stage--) {
+            for (int u = 0; u < graph.get(stage).size(); u++) {
+                for (Edge e : graph.get(stage).get(u)) {
+                    if (cost[e.toStage][e.toNode] != Integer.MAX_VALUE &&
+                        cost[stage][u] > e.weight + cost[e.toStage][e.toNode]) {
+                        cost[stage][u] = e.weight + cost[e.toStage][e.toNode];
+                        nextNode[stage][u][0] = e.toStage;
+                        nextNode[stage][u][1] = e.toNode;
+                    }
+                }
+            }
+        }
+
+        // Reconstruct path
+        List<int[]> path = new ArrayList<>();
+        int currStage = sourceStage;
+        int currNode = sourceNode;
+
+        while (currStage != -1 && currNode != -1) {
+            path.add(new int[]{currStage, currNode});
+            int nextStage = nextNode[currStage][currNode][0];
+            int nextN = nextNode[currStage][currNode][1];
+            currStage = nextStage;
+            currNode = nextN;
+        }
+        return new Result(cost[sourceStage][sourceNode], path);
+    }
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter number of stages: ");
+        int stages = sc.nextInt();
+
+        List<List<List<Edge>>> graph = new ArrayList<>();
+        int[] nodesInStage = new int[stages];
+
+        for (int i = 0; i < stages; i++) {
+            System.out.print("Enter number of nodes in stage " + i + ": ");
+            nodesInStage[i] = sc.nextInt();
+            graph.add(new ArrayList<>());
+            for (int j = 0; j < nodesInStage[i]; j++)
+                graph.get(i).add(new ArrayList<>());
+        }
+
+        System.out.println("Enter edges in format: stage_from node_from stage_to node_to weight");
+        System.out.println("Enter -1 to stop input.");
+        while (true) {
+            int sFrom = sc.nextInt();
+            if (sFrom == -1) break;
+            int nFrom = sc.nextInt();
+            int sTo = sc.nextInt();
+            int nTo = sc.nextInt();
+            int w = sc.nextInt();
+            graph.get(sFrom).get(nFrom).add(new Edge(sTo, nTo, w));
+        }
+
+        System.out.print("Enter source stage and node: ");
+        int sourceStage = sc.nextInt();
+        int sourceNode = sc.nextInt();
+
+        System.out.print("Enter destination stage and node: ");
+        int destStage = sc.nextInt();
+        int destNode = sc.nextInt();
+
+        Result result = findOptimalRoute(stages, sourceStage, sourceNode, destStage, destNode, graph);
+
+        System.out.println("Minimum cost: " + result.cost);
+        System.out.print("Optimal Path (stage,node): ");
+        for (int[] p : result.path) {
+            System.out.print("(" + p[0] + "," + p[1] + ") ");
+        }
+        System.out.println();
+        sc.close();
+    }
+}
+
