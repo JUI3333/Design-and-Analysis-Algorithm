@@ -1,0 +1,227 @@
+.import java.util.*;
+/**
+ * TSPBranchAndBound.java
+ * Least-Cost Branch & Bound for TSP using reduced cost matrix lower bounds.
+ *
+ * Usage:
+ * - Input N (number of cities)
+ * - Input NxN cost matrix (use large number or -1 for INF / no direct edge)
+ *
+ * The program prints the optimal tour and its cost (exact).
+ */
+public class TSPBranchAndBound {
+
+    static final int INF = 1_000_000_000;
+
+    // Node used in priority queue (best-first on lower bound)
+    static class Node implements Comparable<Node> {
+        int[][] reducedMatrix;
+        int level;             // how many edges chosen (level = path.size()-1)
+        int pathLast;          // last city in current path
+        int lb;                // lower bound
+        List<Integer> path;    // visited cities in order
+
+        Node(int[][] reducedMatrix, int level, int pathLast, int lb, List<Integer> path) {
+            this.reducedMatrix = reducedMatrix;
+            this.level = level;
+            this.pathLast = pathLast;
+            this.lb = lb;
+            this.path = path;
+        }
+
+        @Override
+        public int compareTo(Node o) {
+            return Integer.compare(this.lb, o.lb);
+        }
+    }
+    // Copy matrix deep
+    static int[][] copyMatrix(int[][] mat) {
+        int n = mat.length;
+        int[][] m2 = new int[n][n];
+        for (int i = 0; i < n; i++) System.arraycopy(mat[i], 0, m2[i], 0, n);
+        return m2;
+    }
+    // Reduce matrix in-place and return reduction cost (sum of all subtractions)
+    static int reduceMatrix(int[][] mat) {
+        int n = mat.length;
+        int reduction = 0;
+        // Row reduction
+        for (int i = 0; i < n; i++) {
+            int rowMin = INF;
+            for (int j = 0; j < n; j++) if (mat[i][j] < rowMin) rowMin = mat[i][j];
+            if (rowMin == INF || rowMin == 0) continue;
+            for (int j = 0; j < n; j++) {
+                if (mat[i][j] < INF) mat[i][j] -= rowMin;
+            }
+            reduction += rowMin;
+        }
+
+        // Column reduction
+        for (int j = 0; j < n; j++) {
+            int colMin = INF;
+            for (int i = 0; i < n; i++) if (mat[i][j] < colMin) colMin = mat[i][j];
+            if (colMin == INF || colMin == 0) continue;
+            for (int i = 0; i < n; i++) {
+                if (mat[i][j] < INF) mat[i][j] -= colMin;
+            }
+            reduction += colMin;
+        }
+        return reduction;
+    }
+
+    // Set all entries of row r to INF
+    static void setRowToInf(int[][] mat, int r) {
+        int n = mat.length;
+        for (int j = 0; j < n; j++) mat[r][j] = INF;
+    }
+    // Set all entries of column c to INF
+    static void setColToInf(int[][] mat, int c) {
+        int n = mat.length;
+        for (int i = 0; i < n; i++) mat[i][c] = INF;
+    }
+    // Solve TSP using LC Branch & Bound
+    static Result solveTSP(int[][] cost, int start) {
+        int n = cost.length;
+        // convert -1 entries to INF (if user used -1 for no edge)
+        for (int i = 0; i < n; i++) for (int j = 0; j < n; j++)
+            if (cost[i][j] < 0) cost[i][j] = INF;
+
+        // Initial reduced matrix and lower bound
+        int[][] rootMatrix = copyMatrix(cost);
+        // Prevent self-loops
+        for (int i = 0; i < n; i++) rootMatrix[i][i] = INF;
+        int rootReduction = reduceMatrix(rootMatrix);
+        int rootLB = rootReduction; // initial lower bound
+        // Best solution trackers
+        int bestCost = INF;
+        List<Integer> bestPath = null;
+
+        PriorityQueue<Node> pq = new PriorityQueue<>();
+        // Root node: path starts at 'start'
+        List<Integer> rootPath = new ArrayList<>();
+        rootPath.add(start);
+        Node root = new Node(rootMatrix, 0, start, rootLB, rootPath);
+        pq.offer(root);
+
+        while (!pq.isEmpty()) {
+            Node node = pq.poll();
+
+            // Prune nodes with lower bound >= current best cost
+            if (node.lb >= bestCost) continue;
+
+            // If we've visited all cities (level == n-1) then finalize tour by returning to start
+            if (node.level == n - 1) {
+                // compute actual cost by adding cost of returning to start
+                int last = node.pathLast;
+                int returnCost = cost[last][start];
+                if (returnCost >= INF) continue; // no return edge -> invalid
+                int totalCost = node.lb + returnCost;
+                if (totalCost < bestCost) {
+                    bestCost = totalCost;
+                    bestPath = new ArrayList<>(node.path);
+                    bestPath.add(start);
+                }
+                continue;
+            }
+            int u = node.pathLast;
+            // Expand node: try all cities v not yet in path
+            for (int v = 0; v < n; v++) {
+                if (node.path.contains(v)) continue;
+                int edgeCost = cost[u][v];
+                if (edgeCost >= INF) continue; // no direct edge
+
+                // Create child matrix from parent's reduced matrix
+                int[][] childMat = copyMatrix(node.reducedMatrix);
+
+                // Block row u and column v
+                setRowToInf(childMat, u);
+                setColToInf(childMat, v);
+                // Disallow immediate return edge v->u
+                childMat[v][u] = INF;
+
+                // reductionCost after making these changes
+                int reductionCost = reduceMatrix(childMat);
+
+                // child lower bound = current node.lb + original edge cost + reductionCost
+                int childLB = node.lb + edgeCost + reductionCost;
+
+                // prune if bound >= bestCost
+                if (childLB >= bestCost) continue;
+
+                // child path
+                List<Integer> childPath = new ArrayList<>(node.path);
+                childPath.add(v);
+
+                Node child = new Node(childMat, node.level + 1, v, childLB, childPath);
+                pq.offer(child);
+            }
+        }
+
+        return new Result(bestCost, bestPath);
+    }
+
+    static class Result {
+        int cost;
+        List<Integer> path;
+        Result(int cost, List<Integer> path) { this.cost = cost; this.path = path; }
+    }
+
+    // Utility to print matrix (for debugging)
+    static void printMatrix(int[][] m) {
+        int n = m.length;
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if (m[i][j] >= INF) System.out.print("INF ");
+                else System.out.print(m[i][j] + " ");
+            }
+            System.out.println();
+        }
+    }
+
+    // Demo main with interactive input
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        System.out.print("Enter number of cities N: ");
+        int N = sc.nextInt();
+        if (N <= 1) {
+            System.out.println("N must be >= 2");
+            sc.close();
+            return;
+        }
+
+        System.out.println("Enter cost matrix (" + N + "x" + N + "). Use -1 for INF / no direct edge.");
+        int[][] cost = new int[N][N];
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                cost[i][j] = sc.nextInt();
+            }
+        }
+
+        System.out.print("Enter starting city index (0 to " + (N - 1) + "): ");
+        int start = sc.nextInt();
+        if (start < 0 || start >= N) {
+            System.out.println("Invalid start index.");
+            sc.close();
+            return;
+        }
+
+        long t0 = System.currentTimeMillis();
+        Result res = solveTSP(cost, start);
+        long t1 = System.currentTimeMillis();
+
+        if (res.path == null) {
+            System.out.println("No feasible tour found.");
+        } else {
+            System.out.println("\nOptimal tour cost = " + res.cost);
+            System.out.print("Optimal tour path: ");
+            for (int i = 0; i < res.path.size(); i++) {
+                System.out.print(res.path.get(i));
+                if (i + 1 < res.path.size()) System.out.print(" -> ");
+            }
+            System.out.println();
+        }
+
+        System.out.printf("Time taken: %.3f seconds\n", (t1 - t0) / 1000.0);
+        sc.close();
+    }
+}
