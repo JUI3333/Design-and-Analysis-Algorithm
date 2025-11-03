@@ -1,0 +1,152 @@
+import java.util.*;
+
+/*
+ ExamScheduler.java
+ - Build conflict graph from student-course enrollments
+ - Colour graph using Welsh-Powell (degree descending then greedy)
+ - Allocate rooms per timeslot: smallest available room that fits course size
+ - Print final timetable: Course -> Slot -> Room -> #Students
+*/
+public class ExamScheduler {
+    static class Room {
+        String id;
+        int capacity;
+        Room(String id, int capacity) { this.id = id; this.capacity = capacity; }
+    }
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        // --- 1) Read students and their courses ---
+        System.out.print("Enter number of students: ");
+        int numStudents = sc.nextInt();
+        sc.nextLine();
+
+        // map course -> set of student ids (to get student count per course)
+        Map<String, Set<String>> courseStudents = new HashMap<>();
+        // also build student -> list of courses
+        Map<String, List<String>> studentCourses = new HashMap<>();
+        for (int i = 1; i <= numStudents; i++) {
+            System.out.println("\nStudent #" + i + ":");
+            System.out.print("Student id: ");
+            String sid = sc.nextLine().trim();
+
+            System.out.print("Enter courses (space-separated, e.g., C1 C2 C3): ");
+            String line = sc.nextLine().trim();
+            if (line.isEmpty()) continue;
+            String[] courses = line.split("\\s+");
+            studentCourses.put(sid, Arrays.asList(courses));
+            for (String c : courses) {
+                courseStudents.computeIfAbsent(c, k -> new HashSet<>()).add(sid);
+            }
+        }
+        if (courseStudents.isEmpty()) {
+            System.out.println("No courses provided. Exiting.");
+            sc.close();
+            return;
+        }
+        // --- 2) Build conflict graph (undirected adjacency list) ---
+        Map<String, Set<String>> graph = new HashMap<>();
+        for (String c : courseStudents.keySet()) graph.put(c, new HashSet<>());
+        for (Map.Entry<String, List<String>> e : studentCourses.entrySet()) {
+            List<String> clist = e.getValue();
+            for (int a = 0; a < clist.size(); a++) {
+                for (int b = a + 1; b < clist.size(); b++) {
+                    String c1 = clist.get(a), c2 = clist.get(b);
+                    graph.get(c1).add(c2);
+                    graph.get(c2).add(c1);
+                }
+            }
+        }
+
+        // --- 3) Read rooms ---
+        System.out.print("\nEnter number of rooms: ");
+        int R = sc.nextInt();
+        sc.nextLine();
+        List<Room> rooms = new ArrayList<>();
+        for (int i = 1; i <= R; i++) {
+            System.out.println("\nRoom #" + i + ":");
+            System.out.print("Room id (e.g., R1): ");
+            String rid = sc.nextLine().trim();
+            System.out.print("Capacity: ");
+            int cap = sc.nextInt();
+            sc.nextLine();
+            rooms.add(new Room(rid, cap));
+        }
+        if (rooms.isEmpty()) {
+            System.out.println("No rooms given. Exiting.");
+            sc.close();
+            return;
+        }
+        // --- 4) Welsh-Powell: sort courses by degree desc, then greedy color ---
+        List<String> coursesList = new ArrayList<>(graph.keySet());
+        coursesList.sort((a, b) -> {
+            int da = graph.get(a).size();
+            int db = graph.get(b).size();
+            if (db != da) return Integer.compare(db, da);
+            return a.compareTo(b);
+        });
+
+        Map<String, Integer> color = new HashMap<>(); // course -> slot (0-based)
+        int maxColor = -1;
+
+        for (String course : coursesList) {
+            Set<Integer> used = new HashSet<>();
+            for (String nbr : graph.get(course)) {
+                if (color.containsKey(nbr)) used.add(color.get(nbr));
+            }
+            int c = 0;
+            while (used.contains(c)) c++;
+            color.put(course, c);
+            if (c > maxColor) maxColor = c;
+        }
+        int totalSlots = maxColor + 1;
+
+        // --- 5) Room allocation per slot ---
+        // sort rooms by capacity ascending (pick smallest room that fits)
+        rooms.sort(Comparator.comparingInt(rm -> rm.capacity));
+        // Map slot -> map(course -> roomId)
+        Map<Integer, Map<String, String>> allocation = new HashMap<>();
+        for (int slot = 0; slot < totalSlots; slot++) {
+            // collect courses in this slot
+            List<String> examsInSlot = new ArrayList<>();
+            for (String c : coursesList) if (color.get(c) == slot) examsInSlot.add(c);
+            // sort by number of students descending (large exams first)
+            examsInSlot.sort((a, b) -> Integer.compare(courseStudents.get(b).size(), courseStudents.get(a).size()));
+
+            Set<String> usedRooms = new HashSet<>();
+            Map<String, String> roomForCourse = new HashMap<>();
+
+            for (String course : examsInSlot) {
+                int needed = courseStudents.get(course).size();
+                String chosenRoom = null;
+                int chosenCap = Integer.MAX_VALUE;
+                for (Room rm : rooms) {
+                    if (usedRooms.contains(rm.id)) continue;
+                    if (rm.capacity >= needed && rm.capacity < chosenCap) {
+                        chosenRoom = rm.id;
+                        chosenCap = rm.capacity;
+                    }
+                }
+                if (chosenRoom != null) {
+                    usedRooms.add(chosenRoom);
+                    roomForCourse.put(course, chosenRoom);
+                } else {
+                    // no single room fits: mark as "NeedsMultipleOrNone"
+                    roomForCourse.put(course, "NoRoomAvailable");
+                }
+            }
+            allocation.put(slot, roomForCourse);
+        }
+        // --- 6) Print final timetable ---
+        System.out.println("\n===== Final Timetable =====");
+        System.out.printf("%-8s %-8s %-16s %-10s\n", "Course", "Slot", "AssignedRoom", "Students");
+        for (String c : coursesList) {
+            int s = color.get(c);
+            String roomAssigned = allocation.get(s).getOrDefault(c, "NoRoomAssigned");
+            int studentsCount = courseStudents.get(c).size();
+            System.out.printf("%-8s %-8s %-16s %-10d\n", c, "Slot-" + (s + 1), roomAssigned, studentsCount);
+        }
+        System.out.println("\nTotal slots used: " + totalSlots);
+        sc.close();
+    }
+}
+
