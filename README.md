@@ -60,9 +60,3 @@ Divide & Conquer Techniques
 ├── Assignment_6_01Knapsack/
 ├── Assignment_7_GraphColoring/
 └── Assignment_8_TSP_BranchBound/
-
-🎯 Key Features
-Real-world scenarios for each algorithm
-Clean & modular code
-Performance analysis included
-Scalable for large datasets
