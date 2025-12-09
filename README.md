@@ -49,5 +49,20 @@ Python / C++ / Java (mention whichever you used)
 Graph Algorithms
 Dynamic Programming
 Greedy Algorithms
-
 Divide & Conquer Techniques
+
+📂 Project Structure
+├── Assignment_1_MergeSort/
+├── Assignment_2_QuickSort/
+├── Assignment_3_FractionalKnapsack/
+├── Assignment_4_Dijkstra/
+├── Assignment_5_MultistageGraph/
+├── Assignment_6_01Knapsack/
+├── Assignment_7_GraphColoring/
+└── Assignment_8_TSP_BranchBound/
+
+🎯 Key Features
+Real-world scenarios for each algorithm
+Clean & modular code
+Performance analysis included
+Scalable for large datasets
